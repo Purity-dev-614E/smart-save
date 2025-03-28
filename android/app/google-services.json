@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "573789924828",
+    "project_id": "smart-save-702ed",
+    "storage_bucket": "smart-save-702ed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:573789924828:android:e03a9407436f341f927319",
+        "android_client_info": {
+          "package_name": "com.example.smart_save"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOVcIZJ-bMxpFr88ACsQEF85-H1OxstOY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
