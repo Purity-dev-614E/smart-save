@@ -9,13 +9,17 @@ class SavingsProvider with ChangeNotifier {
   List<SavingsGoal> _goals = [];
   List<SavingsTransaction> _transactions = [];
   bool _isLoading = false;
+  bool _isInitialized = false;
 
   List<SavingsGoal> get goals => _goals;
   List<SavingsTransaction> get transactions => _transactions;
   bool get isLoading => _isLoading;
+  bool get isInitialized => _isInitialized;
 
   // Initialize the provider
   Future<void> initialize() async {
+    if (_isInitialized) return;
+
     _isLoading = true;
     notifyListeners();
 
@@ -23,6 +27,7 @@ class SavingsProvider with ChangeNotifier {
       await _firebaseService.initialize();
       _listenToGoals();
       _listenToTransactions();
+      _isInitialized = true;
     } catch (e) {
       if (kDebugMode) {
         print('Error initializing SavingsProvider: $e');

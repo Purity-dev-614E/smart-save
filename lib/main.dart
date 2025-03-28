@@ -3,8 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
+import 'providers/auth_provider.dart';
 import 'providers/savings_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/firebase_service.dart';
 
 void main() async {
@@ -27,13 +30,28 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) {
-        final provider = SavingsProvider();
-        // Initialize asynchronously
-        provider.initialize();
-        return provider;
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) {
+            final authProvider = AuthProvider();
+            // Initialize asynchronously
+            authProvider.initialize();
+            return authProvider;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, SavingsProvider>(
+          create: (context) => SavingsProvider(),
+          update: (context, auth, previous) {
+            final provider = previous ?? SavingsProvider();
+            // Initialize asynchronously if not already initialized
+            if (!provider.isInitialized) {
+              provider.initialize();
+            }
+            return provider;
+          },
+        ),
+      ],
       child: MaterialApp(
         title: 'SmartSave',
         debugShowCheckedModeBanner: false,
@@ -74,17 +92,30 @@ class MyApp extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
           ),
+          inputDecorationTheme: InputDecorationTheme(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
         ),
-        home: Consumer<SavingsProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading) {
+        home: Consumer2<AuthProvider, SavingsProvider>(
+          builder: (context, authProvider, savingsProvider, child) {
+            // Show loading screen while initializing
+            if (authProvider.status == AuthStatus.initial ||
+                savingsProvider.isLoading) {
               return const Scaffold(
                 body: Center(
                   child: CircularProgressIndicator(),
                 ),
               );
             }
-            return const HomeScreen();
+
+            // Show splash screen on first launch
+            return const SplashScreen();
           },
         ),
       ),

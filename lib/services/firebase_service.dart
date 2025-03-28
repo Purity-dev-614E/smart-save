@@ -12,6 +12,18 @@ class FirebaseService {
   // Get current user ID
   String? get currentUserId => _auth.currentUser?.uid;
 
+  // Get current user
+  User? get currentUser => _auth.currentUser;
+
+  // Check if user is logged in
+  bool get isLoggedIn => _auth.currentUser != null;
+
+  // Check if user is anonymous
+  bool get isAnonymous => _auth.currentUser?.isAnonymous ?? true;
+
+  // Get auth state changes stream
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
   // Initialize the service
   Future<void> initialize() async {
     if (!_initialized) {
@@ -31,6 +43,136 @@ class FirebaseService {
       }
       _initialized = true;
     }
+  }
+
+  // Sign up with email and password
+  Future<UserCredential> signUp(String email, String password) async {
+    try {
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // If user was previously anonymous, merge their data
+      if (_auth.currentUser != null && _auth.currentUser!.isAnonymous) {
+        final anonymousUid = _auth.currentUser!.uid;
+        await _mergeAnonymousUserData(anonymousUid, userCredential.user!.uid);
+      }
+
+      return userCredential;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error signing up: $e');
+      }
+      rethrow;
+    }
+  }
+
+  // Sign in with email and password
+  Future<UserCredential> signIn(String email, String password) async {
+    try {
+      return await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error signing in: $e');
+      }
+      rethrow;
+    }
+  }
+
+  // Sign out
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+      // After sign out, sign in anonymously again
+      await _auth.signInAnonymously();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error signing out: $e');
+      }
+      rethrow;
+    }
+  }
+
+  // Reset password
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error resetting password: $e');
+      }
+      rethrow;
+    }
+  }
+
+  // Merge anonymous user data with authenticated user
+  Future<void> _mergeAnonymousUserData(String anonymousUid, String authenticatedUid) async {
+    // Get all goals from anonymous user
+    final goalsSnapshot = await _firestore
+        .collection('users')
+        .doc(anonymousUid)
+        .collection('goals')
+        .get();
+
+    // Get all transactions from anonymous user
+    final transactionsSnapshot = await _firestore
+        .collection('users')
+        .doc(anonymousUid)
+        .collection('transactions')
+        .get();
+
+    // Use a batch to transfer all data
+    final batch = _firestore.batch();
+
+    // Transfer goals
+    for (final doc in goalsSnapshot.docs) {
+      final newDocRef = _firestore
+          .collection('users')
+          .doc(authenticatedUid)
+          .collection('goals')
+          .doc(doc.id);
+
+      batch.set(newDocRef, doc.data());
+    }
+
+    // Transfer transactions
+    for (final doc in transactionsSnapshot.docs) {
+      final newDocRef = _firestore
+          .collection('users')
+          .doc(authenticatedUid)
+          .collection('transactions')
+          .doc(doc.id);
+
+      batch.set(newDocRef, doc.data());
+    }
+
+    // Delete anonymous user data
+    for (final doc in goalsSnapshot.docs) {
+      final oldDocRef = _firestore
+          .collection('users')
+          .doc(anonymousUid)
+          .collection('goals')
+          .doc(doc.id);
+
+      batch.delete(oldDocRef);
+    }
+
+    for (final doc in transactionsSnapshot.docs) {
+      final oldDocRef = _firestore
+          .collection('users')
+          .doc(anonymousUid)
+          .collection('transactions')
+          .doc(doc.id);
+
+      batch.delete(oldDocRef);
+    }
+
+    // Commit the batch
+    await batch.commit();
   }
 
   // Collection references
